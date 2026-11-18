@@ -1,0 +1,33 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      routes:
+        # Solicita validacion de RUC
+        - id: ms-contribuyentes
+          uri: ${MS_CONTRIBUYENTES_URL:http://localhost:8081}
+          predicates:
+            - Path=/api/contribuyentes/**
+        # Solicita informacion vehicular
+        - id: ms-vehiculos
+          uri: ${MS_VEHICULOS_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/vehiculos/**
+        # Solicita puntos de licencia
+        - id: ms-licencias
+          uri: ${MS_LICENCIAS_URL:http://localhost:8083}
+          predicates:
+            - Path=/api/licencias/**
+      # CORS centralizado: el frontend React solo habla con el gateway
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: ${CORS_ORIGINS:http://localhost:5173}
+            allowedMethods:
+              - GET
+              - OPTIONS
+            allowedHeaders: "*"
