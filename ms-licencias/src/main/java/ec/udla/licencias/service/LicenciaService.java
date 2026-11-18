@@ -6,12 +6,8 @@ import ec.udla.licencias.dto.LicenciaInfo;
 import ec.udla.licencias.dto.LicenciaResponse;
 import ec.udla.licencias.dto.LicenciaResponse.Fuente;
 import ec.udla.licencias.exception.AntNoDisponibleException;
-import ec.udla.licencias.registro.ConsultaLicencia;
-import ec.udla.licencias.registro.ConsultaLicenciaRepository;
 import ec.udla.licencias.resilience.CircuitBreaker;
 import ec.udla.licencias.validator.ResponseValidator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -28,21 +24,17 @@ import java.util.Optional;
 @Service
 public class LicenciaService {
 
-    private static final Logger log = LoggerFactory.getLogger(LicenciaService.class);
-
     private final CacheManager cacheManager;
     private final CircuitBreaker circuitBreaker;
     private final AntClient antClient;
     private final ResponseValidator responseValidator;
-    private final ConsultaLicenciaRepository registro;
 
     public LicenciaService(CacheManager cacheManager, CircuitBreaker circuitBreaker, AntClient antClient,
-                           ResponseValidator responseValidator, ConsultaLicenciaRepository registro) {
+                           ResponseValidator responseValidator) {
         this.cacheManager = cacheManager;
         this.circuitBreaker = circuitBreaker;
         this.antClient = antClient;
         this.responseValidator = responseValidator;
-        this.registro = registro;
     }
 
     public LicenciaResponse consultarPuntos(String cedula, String placa) {
@@ -50,12 +42,6 @@ public class LicenciaService {
             throw new IllegalArgumentException("La cedula debe tener 10 digitos");
         }
 
-        LicenciaResponse respuesta = resolver(cedula, placa);
-        registrar(cedula, placa, respuesta);
-        return respuesta;
-    }
-
-    private LicenciaResponse resolver(String cedula, String placa) {
         Optional<LicenciaInfo> copia = cacheManager.buscar(cedula);
         if (copia.isPresent() && cacheManager.esFresca(copia.get())) {
             return respuesta(copia.get(), Fuente.CACHE, null);
@@ -76,11 +62,4 @@ public class LicenciaService {
         return new LicenciaResponse(info, fuente, circuitBreaker.getEstado().name(), advertencia);
     }
 
-    private void registrar(String cedula, String placa, LicenciaResponse r) {
-        try {
-            registro.save(new ConsultaLicencia(cedula, placa, r.fuente().name(), r.licencia().puntos()));
-        } catch (Exception e) {
-            log.warn("No se pudo registrar la consulta: {}", e.getMessage());
-        }
-    }
 }

@@ -6,7 +6,6 @@ import ec.udla.licencias.dto.LicenciaInfo;
 import ec.udla.licencias.dto.LicenciaResponse.Fuente;
 import ec.udla.licencias.exception.AntNoDisponibleException;
 import ec.udla.licencias.exception.CircuitoAbiertoException;
-import ec.udla.licencias.registro.ConsultaLicenciaRepository;
 import ec.udla.licencias.resilience.CircuitBreaker;
 import ec.udla.licencias.validator.ResponseValidator;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-/** Prueba el flujo del diagrama C3 sin Redis, PostgreSQL ni ANT reales. */
+/** Prueba el flujo del diagrama C3 sin Redis ni ANT reales. */
 @ExtendWith(MockitoExtension.class)
 class LicenciaServiceTest {
 
@@ -34,14 +33,13 @@ class LicenciaServiceTest {
     @Mock CacheManager cacheManager;
     @Mock AntClient antClient;
     @Mock ResponseValidator responseValidator;
-    @Mock ConsultaLicenciaRepository registro;
 
     LicenciaService service;
 
     @BeforeEach
     void setUp() {
         CircuitBreaker circuitBreaker = new CircuitBreaker(3, Duration.ofSeconds(60), Clock.systemUTC());
-        service = new LicenciaService(cacheManager, circuitBreaker, antClient, responseValidator, registro);
+        service = new LicenciaService(cacheManager, circuitBreaker, antClient, responseValidator);
     }
 
     private LicenciaInfo info(int puntos) {
@@ -70,7 +68,6 @@ class LicenciaServiceTest {
 
         assertEquals(Fuente.ANT, r.fuente());
         assertEquals(28, r.licencia().puntos());
-        verify(registro).save(any());
     }
 
     @Test

@@ -2,15 +2,14 @@
 
 Prototipo que implementa el modelo C4 diseñado en IcePanel:
 
-| Contenedor (C2) | Carpeta | Tecnología | Puerto |
+| Requisito | Implementación | Carpeta | Puerto |
 |---|---|---|---|
-| Frontend Web REACT | `frontend/` | React 18 + Vite | 5173 |
-| API Gateway (enrutamiento) | `api-gateway/` | Spring Cloud Gateway | 8080 |
-| Microservicio Contribuyentes (RUC y persona natural) | `ms-contribuyentes/` | Spring Boot 3.3, Java 17 | 8081 |
-| Microservicio Vehículos (matrícula) | `ms-vehiculos/` | Spring Boot 3.3, Java 17 | 8082 |
-| Microservicio Licencias (puntos) | `ms-licencias/` | Spring Boot 3.3, Jsoup, Redis | 8083 |
-| Base de datos PostgreSQL (registro de consultas) | `docker-compose.yml` | PostgreSQL 16 | 5432 |
-| Redis Cache de consultas ANT | Upstash (cloud) | Redis | 6379 |
+| **Frontend React** | React 18 + Vite | `frontend/` | 5173 |
+| **Backend Java** | API Gateway (Spring Cloud Gateway) | `api-gateway/` | 8080 |
+|  | Microservicio Contribuyentes (RUC y persona natural) | `ms-contribuyentes/` | 8081 |
+|  | Microservicio Vehículos (matrícula) | `ms-vehiculos/` | 8082 |
+|  | Microservicio Licencias (puntos ANT) | `ms-licencias/` | 8083 |
+| **Caché Cloud** | Redis en Upstash | — | — |
 
 ## Arquitectura (modelo C4 en IcePanel)
 
@@ -25,28 +24,20 @@ C4 – Código: [docs/C4-Nivel4-Codigo.md](docs/C4-Nivel4-Codigo.md)
 Evidencias de ejecución: [docs/EJECUCION.md](docs/EJECUCION.md)
 
 ## Patrones
-- **API Gateway**: el frontend solo habla con `:8080`; el gateway enruta y centraliza CORS.
-- **Cache-Aside** (ms-licencias): copia fresca (60 min) → se responde desde Redis; si no, se consulta la ANT
+- **API Gateway**: el frontend solo habla con `:8080`; el gateway enruta a cada microservicio y centraliza CORS.
+- **Cache-Aside** (ms-licencias): si hay copia reciente (60 min) se responde desde Redis; si no, se consulta la ANT
   y **cada respuesta válida se guarda en Redis**; si la ANT falla, se responde con la última copia (`CACHE_RESPALDO`).
-- **Circuit Breaker**: tras 3 fallos seguidos de la ANT deja de consultarla 60 s y responde desde caché.
-- **Registro de consultas**: cada microservicio guarda sus consultas en PostgreSQL.
+- **Circuit Breaker**: tras 3 fallos seguidos de la ANT deja de consultarla por 60 s y responde desde caché.
 
-## Ejecutar (Windows PowerShell)
+## Ejecutar (Windows)
 
-1. Infraestructura local: `docker compose up -d postgres` (o `docker compose up -d` si también quieres Redis local).
-2. Caché Cloud: crea una base Redis en https://upstash.com y copia la URL TLS.
-3. Una terminal por servicio:
+**Requisitos:** JDK 17, Node.js 18+ y una base Redis gratis en [Upstash](https://upstash.com) (es web, no se instala).
+
 ```powershell
-cd ms-contribuyentes; mvn spring-boot:run
-cd ms-vehiculos;      mvn spring-boot:run
-cd ms-licencias;      $env:REDIS_URL="rediss://default:<password>@<host>.upstash.io:6379"; mvn spring-boot:run
-cd api-gateway;       mvn spring-boot:run
-cd frontend;          copy .env.example .env; npm install; npm run dev
+powershell -ExecutionPolicy Bypass -File .\iniciar.ps1
 ```
-4. Abrir http://localhost:5173
-
-> Si no tienes Maven instalado, copia `mvnw`, `mvnw.cmd` y la carpeta `.mvn` de cualquier proyecto Spring Boot
-> en cada microservicio y usa `.\mvnw.cmd spring-boot:run`.
+El script copia el Maven Wrapper si falta, pide la URL de Upstash (`rediss://...`) y abre una ventana por servicio.
+Cuando todas digan `Started`, abre http://localhost:5173
 
 ## Endpoints (a través del gateway :8080)
 | Método | Ruta | Microservicio |
@@ -57,5 +48,5 @@ cd frontend;          copy .env.example .env; npm install; npm run dev
 
 ## Pruebas
 ```powershell
-cd ms-licencias; mvn test   # CircuitBreakerTest + LicenciaServiceTest (sin Redis/ANT/BD reales)
+cd ms-licencias; .\mvnw.cmd test   # CircuitBreakerTest + LicenciaServiceTest (sin Redis ni ANT reales)
 ```

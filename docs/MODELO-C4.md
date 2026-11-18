@@ -38,7 +38,6 @@ Cada nivel hace *zoom* sobre un elemento del nivel anterior.
 | Microservicio Contribuyentes | Java 17 + Spring Boot | Valida el RUC, verifica que sea contribuyente y persona natural | [`ms-contribuyentes/`](../ms-contribuyentes) |
 | Microservicio Vehículos | Java 17 + Spring Boot | Consulta la matrícula del vehículo por placa | [`ms-vehiculos/`](../ms-vehiculos) |
 | Microservicio Licencias | Java 17 + Spring Boot + Jsoup | Consulta los puntos de licencia en la ANT con caché y Circuit Breaker | [`ms-licencias/`](../ms-licencias) |
-| Base de Datos PostgreSQL | PostgreSQL 16 | Registro de consultas tributarias, vehiculares y de licencias | `docker-compose.yml` |
 | Redis Cache de consultas ANT | Redis Cloud (Upstash) | Guarda la última respuesta válida de la ANT por cédula | `ms-licencias/.../cache` |
 
 **Relaciones principales:**
@@ -46,7 +45,6 @@ Cada nivel hace *zoom* sobre un elemento del nivel anterior.
 - API Gateway → cada microservicio: *Solicita validación de RUC / información vehicular / puntos de licencia*.
 - Contribuyentes y Vehículos → API REST SRI (REST HTTPS). Licencias → Portal Web ANT (HTTPS, la respuesta es HTML).
 - Licencias ↔ Redis: *Lee y almacena puntos de licencia*.
-- Los tres microservicios → PostgreSQL: *Registra consultas*.
 
 ---
 
