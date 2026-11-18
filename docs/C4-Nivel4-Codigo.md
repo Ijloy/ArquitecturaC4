@@ -1,80 +1,89 @@
-# C4 Nivel 4 — Código del Microservicio Licencias
+# C4 Nivel 4: Código de los tres microservicios
 
-El nivel 4 de C4 baja de cada **componente** del nivel 3 a las **clases** que lo implementan.
-En IcePanel no se dibuja con cajas: se hace **enlazando cada componente con su archivo en GitHub**.
-Este documento (GitHub dibuja el diagrama Mermaid de abajo) sirve como vista de clases.
+El nivel 4 de C4 baja de cada componente a las **clases** que lo implementan.
+El microservicio principal (Licencias) está explicado en el [README](../README.md#c4--código-microservicio-licencias).
+Aquí están también los diagramas de clases de Contribuyentes y Vehículos.
 
-## Componente (C3) → Clase (C4)
+## Microservicio Licencias
 
-| Componente en IcePanel | Clase Java | Responsabilidad |
-|---|---|---|
-| LicenciaController | [`controller/LicenciaController.java`](https://github.com/Ijloy/sistema-consulta-tributaria-vehicular/blob/main/ms-licencias/src/main/java/ec/udla/licencias/controller/LicenciaController.java) | Recibe del API Gateway `GET /api/licencias/{cedula}?placa=` |
-| LicenciaService | [`service/LicenciaService.java`](https://github.com/Ijloy/sistema-consulta-tributaria-vehicular/blob/main/ms-licencias/src/main/java/ec/udla/licencias/service/LicenciaService.java) | Orquesta Cache-Aside + Circuit Breaker |
-| CacheManager | [`cache/CacheManager.java`](https://github.com/Ijloy/sistema-consulta-tributaria-vehicular/blob/main/ms-licencias/src/main/java/ec/udla/licencias/cache/CacheManager.java) | Busca y almacena en Redis (clave `ant:licencia:{cedula}`) |
-| Circuit Breaker | [`resilience/CircuitBreaker.java`](https://github.com/Ijloy/sistema-consulta-tributaria-vehicular/blob/main/ms-licencias/src/main/java/ec/udla/licencias/resilience/CircuitBreaker.java) | CERRADO / ABIERTO / SEMI_ABIERTO; autoriza la consulta externa |
-| ANTClient | [`client/AntClient.java`](https://github.com/Ijloy/sistema-consulta-tributaria-vehicular/blob/main/ms-licencias/src/main/java/ec/udla/licencias/client/AntClient.java) | Llama al Portal Web ANT y devuelve el HTML |
-| ResponseValidator | [`validator/ResponseValidator.java`](https://github.com/Ijloy/sistema-consulta-tributaria-vehicular/blob/main/ms-licencias/src/main/java/ec/udla/licencias/validator/ResponseValidator.java) | Valida el HTML, extrae puntos/citaciones y almacena solo respuestas válidas |
-| Redis cache (Store) | [`application.properties`](https://github.com/Ijloy/sistema-consulta-tributaria-vehicular/blob/main/ms-licencias/src/main/resources/application.properties) | `spring.data.redis.url` → Redis Cloud (Upstash) |
+| Componente (C3) | Clase |
+|---|---|
+| LicenciaController | [`controller/LicenciaController.java`](../ms-licencias/src/main/java/ec/udla/licencias/controller/LicenciaController.java) |
+| LicenciaService | [`service/LicenciaService.java`](../ms-licencias/src/main/java/ec/udla/licencias/service/LicenciaService.java) |
+| CacheManager | [`cache/CacheManager.java`](../ms-licencias/src/main/java/ec/udla/licencias/cache/CacheManager.java) |
+| Circuit Breaker | [`resilience/CircuitBreaker.java`](../ms-licencias/src/main/java/ec/udla/licencias/resilience/CircuitBreaker.java) |
+| ANTClient | [`client/AntClient.java`](../ms-licencias/src/main/java/ec/udla/licencias/client/AntClient.java) |
+| ResponseValidator | [`validator/ResponseValidator.java`](../ms-licencias/src/main/java/ec/udla/licencias/validator/ResponseValidator.java) |
 
-## Diagrama de clases
+## Microservicio Contribuyentes
 
 ```mermaid
 classDiagram
     direction LR
-    class LicenciaController {
-        +consultarPuntos(cedula, placa) LicenciaResponse
+    class ContribuyenteController {
+        +verificar(ruc, correo) ContribuyenteResponse
     }
-    class LicenciaService {
-        +consultarPuntos(cedula, placa) LicenciaResponse
+    class ContribuyenteService {
+        +verificar(ruc, correo) ContribuyenteResponse
+        ~esPersonaNatural(datos JsonNode) boolean
     }
-    class CacheManager {
-        +buscar(cedula) Optional~LicenciaInfo~
-        +guardar(info)
-        +esFresca(info) boolean
+    class SriCatastroClient {
+        -http RestClient
+        +existeContribuyente(ruc) boolean
+        +obtenerContribuyente(ruc) Optional~JsonNode~
     }
-    class CircuitBreaker {
-        -estado: Estado
-        -fallosSeguidos: int
-        +ejecutar(Supplier~T~) T
-        +getEstado() Estado
-    }
-    class AntClient {
-        +consultarPuntos(cedula, placa) String
-    }
-    class ResponseValidator {
-        +validarYAlmacenar(cedula, html) LicenciaInfo
-        +validar(cedula, html) LicenciaInfo
-    }
-    class LicenciaInfo {
+    class ContribuyenteResponse {
         <<record>>
-        cedula
-        puntos
-        citaciones
-        obtenidoEn
+        ruc String
+        cedula String
+        esContribuyente boolean
+        esPersonaNatural boolean
+        mensaje String
+        datos JsonNode
     }
-    class LicenciaResponse {
-        <<record>>
-        licencia
-        fuente: Fuente
-        estadoCircuito
-        advertencia
+    class ManejadorErrores {
+        <<RestControllerAdvice>>
     }
-    class StringRedisTemplate
-    LicenciaController --> LicenciaService
-    LicenciaService --> CacheManager : busca en cache
-    LicenciaService --> CircuitBreaker : solicita acceso a ANT
-    LicenciaService --> AntClient
-    LicenciaService --> ResponseValidator
-    ResponseValidator --> CacheManager : almacena respuesta valida
-    CacheManager --> StringRedisTemplate : Redis Cloud
-    LicenciaService ..> LicenciaResponse
-    ResponseValidator ..> LicenciaInfo
+    ContribuyenteController --> ContribuyenteService
+    ContribuyenteService --> SriCatastroClient : existePorNumeroRuc / obtenerPorNumerosRuc
+    ContribuyenteService ..> ContribuyenteResponse
+    SriCatastroClient ..> SriNoDisponibleException : lanza
+    ManejadorErrores ..> SriNoDisponibleException : 502
 ```
 
-## Secuencia (Flow "Consulta con ANT caída")
+| Clase | Archivo |
+|---|---|
+| ContribuyenteController | [`controller/ContribuyenteController.java`](../ms-contribuyentes/src/main/java/ec/udla/contribuyentes/controller/ContribuyenteController.java) |
+| ContribuyenteService | [`service/ContribuyenteService.java`](../ms-contribuyentes/src/main/java/ec/udla/contribuyentes/service/ContribuyenteService.java) |
+| SriCatastroClient | [`client/SriCatastroClient.java`](../ms-contribuyentes/src/main/java/ec/udla/contribuyentes/client/SriCatastroClient.java) |
 
-1. API Gateway → LicenciaController → LicenciaService
-2. LicenciaService → CacheManager.buscar(cedula): copia de hace 3 días (no fresca)
-3. LicenciaService → CircuitBreaker.ejecutar(...) → AntClient → **timeout**
-4. CircuitBreaker cuenta el fallo (al 3.º seguido se ABRE y deja de llamar a la ANT por 60 s)
-5. LicenciaService devuelve la copia con `fuente = CACHE_RESPALDO` y advertencia
+## Microservicio Vehículos
+
+```mermaid
+classDiagram
+    direction LR
+    class VehiculoController {
+        +consultar(placa) ResponseEntity~JsonNode~
+    }
+    class VehiculoService {
+        +consultar(placa) Optional~JsonNode~
+    }
+    class SriVehiculoClient {
+        -http RestClient
+        +obtenerPorPlaca(placa) Optional~JsonNode~
+    }
+    VehiculoController --> VehiculoService
+    VehiculoService --> SriVehiculoClient : BaseVehiculo por placa
+    SriVehiculoClient ..> SriNoDisponibleException : lanza
+```
+
+| Clase | Archivo |
+|---|---|
+| VehiculoController | [`controller/VehiculoController.java`](../ms-vehiculos/src/main/java/ec/udla/vehiculos/controller/VehiculoController.java) |
+| VehiculoService | [`service/VehiculoService.java`](../ms-vehiculos/src/main/java/ec/udla/vehiculos/service/VehiculoService.java) |
+| SriVehiculoClient | [`client/SriVehiculoClient.java`](../ms-vehiculos/src/main/java/ec/udla/vehiculos/client/SriVehiculoClient.java) |
+
+## API Gateway
+
+No tiene clases propias más allá de `ApiGatewayApplication`: las rutas se declaran en
+[`application.yml`](../api-gateway/src/main/resources/application.yml).
